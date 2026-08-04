@@ -3,6 +3,290 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wallhaven 镜像站 | Bizhi</title>
+    <style>
+        :root { --bg: #0d1117; --surface: #161b22; --border: #30363d; --text: #c9d1d9; --subtext: #8b949e; --accent: #58a6ff; --green: #3fb950; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; background: var(--bg); color: var(--text); }
+        
+        .progress-bar { position: fixed; top: 0; left: 0; height: 3px; width: 0; background: var(--accent); z-index: 9999; transition: width 0.3s; }
+        
+        header { text-align: center; padding: 30px 20px 20px; border-bottom: 1px solid var(--border); margin-bottom: 20px; }
+        header h1 { font-size: 1.8rem; color: var(--accent); }
+        header p { color: var(--subtext); margin-top: 5px; font-size: 0.9rem; }
+        
+        /* 控制栏 */
+        .controls { display: flex; justify-content: center; align-items: center; gap: 12px; margin-bottom: 25px; flex-wrap: wrap; padding: 0 20px; }
+        .search-box { display: flex; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+        .search-box input { background: transparent; border: none; outline: none; color: var(--text); padding: 8px 12px; width: 200px; font-size: 0.9rem; }
+        .search-box button { background: var(--accent); color: #000; border: none; padding: 0 15px; cursor: pointer; font-weight: 700; }
+        
+        .cat-btn { background: var(--surface); color: var(--subtext); border: 1px solid var(--border); padding: 8px 14px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.2s; font-size: 0.85rem; }
+        .cat-btn:hover { color: var(--text); }
+        .cat-btn.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+
+        /* 瀑布流 */
+        .masonry { column-count: 4; column-gap: 15px; padding: 0 20px 40px; }
+        @media (max-width: 1200px) { .masonry { column-count: 3; } }
+        @media (max-width: 800px) { .masonry { column-count: 2; } }
+        @media (max-width: 500px) { .masonry { column-count: 1; } }
+
+        .item { break-inside: avoid; margin-bottom: 15px; border-radius: 8px; overflow: hidden; position: relative; cursor: pointer; border: 1px solid var(--border); background: var(--surface); }
+        .item img { width: 100%; display: block; transition: transform 0.3s, opacity 0.3s; opacity: 0; }
+        .item img.loaded { opacity: 1; }
+        .item:hover img { transform: scale(1.05); }
+        .item .info { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(transparent, rgba(0,0,0,0.9)); padding: 30px 10px 10px; font-size: 0.8rem; color: #fff; opacity: 0; transition: opacity 0.3s; }
+        .item:hover .info { opacity: 1; }
+        
+        .loading { text-align: center; padding: 50px; color: var(--subtext); }
+
+        /* 分页器 */
+        .pagination { display: flex; justify-content: center; gap: 15px; padding: 30px 20px; border-top: 1px solid var(--border); }
+        .page-btn { background: var(--surface); color: var(--text); border: 1px solid var(--border); padding: 10px 25px; border-radius: 8px; cursor: pointer; font-weight: 700; transition: all 0.2s; }
+        .page-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+        .page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .page-info { color: var(--subtext); display: flex; align-items: center; font-weight: 600; }
+
+        /* 详情页 */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 1000; justify-content: center; align-items: center; padding: 20px; backdrop-filter: blur(8px); }
+        .modal-content { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; max-width: 1200px; width: 100%; max-height: 90vh; display: flex; overflow: hidden; }
+        .modal-img-area { flex: 2; background: #000; display: flex; justify-content: center; align-items: center; overflow: hidden; }
+        .modal-img-area img { max-width: 100%; max-height: 90vh; object-fit: contain; }
+        .modal-info-area { flex: 1; padding: 30px; display: flex; flex-direction: column; gap: 20px; overflow-y: auto; }
+        .modal-info-area h2 { color: var(--accent); font-size: 1.4rem; }
+        .meta-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+        .meta-label { color: var(--subtext); }
+        .meta-value { color: var(--text); font-weight: 600; text-align: right; }
+        .btn-group { margin-top: auto; display: flex; flex-direction: column; gap: 10px; }
+        .btn-download { background: var(--green); color: #000; text-align: center; text-decoration: none; padding: 12px; border-radius: 6px; font-weight: 700; border: none; cursor: pointer; }
+        .btn-source { background: transparent; color: var(--subtext); text-align: center; text-decoration: none; padding: 12px; border-radius: 6px; border: 1px solid var(--border); }
+        .btn-source:hover { border-color: var(--accent); color: var(--accent); }
+        .close-btn { position: absolute; top: 20px; right: 30px; color: #fff; font-size: 2rem; cursor: pointer; z-index: 1001; }
+    </style>
+</head>
+<body>
+
+    <div class="progress-bar" id="progressBar"></div>
+
+    <header>
+        <h1>Wallhaven 镜像站</h1>
+        <p>纯前端调用官方 API · 图片走 wsrv.nl 加速 · 秒开</p>
+    </header>
+
+    <div class="controls">
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="搜索壁纸 (如: landscape)" onkeydown="if(event.key==='Enter') doSearch()">
+            <button onclick="doSearch()">搜索</button>
+        </div>
+        <button class="cat-btn active" data-cat="100" onclick="switchCat(this)">综合</button>
+        <button class="cat-btn" data-cat="010" onclick="switchCat(this)">动漫</button>
+        <button class="cat-btn" data-cat="001" onclick="switchCat(this)">人物</button>
+    </div>
+
+    <div id="loading" class="loading">正在拉取 Wallhaven 数据...</div>
+    <div class="masonry" id="gallery"></div>
+
+    <div class="pagination">
+        <button class="page-btn" id="prevBtn" onclick="changePage(-1)">上一页</button>
+        <div class="page-info">第 <span id="currentPage">1</span> 页</div>
+        <button class="page-btn" id="nextBtn" onclick="changePage(1)">下一页</button>
+    </div>
+
+    <!-- 详情页 -->
+    <div class="modal-overlay" id="detailModal">
+        <span class="close-btn" onclick="closeDetail()">&times;</span>
+        <div class="modal-content">
+            <div class="modal-img-area">
+                <img id="detailImg" src="" alt="Preview">
+            </div>
+            <div class="modal-info-area">
+                <h2 id="detailTitle">壁纸详情</h2>
+                <div class="meta-row"><span class="meta-label">分辨率</span><span class="meta-value" id="detailRes">-</span></div>
+                <div class="meta-row"><span class="meta-label">来源</span><span class="meta-value" id="detailSource">-</span></div>
+                <div class="meta-row"><span class="meta-label">分类</span><span class="meta-value" id="detailCategory">-</span></div>
+                <div class="meta-row" style="border: none;"><span class="meta-label">描述</span></div>
+                <p style="font-size: 0.85rem; color: var(--subtext); flex-grow: 1;" id="detailDesc">-</p>
+                <div class="btn-group">
+                    <a id="downloadBtn" class="btn-download" download="" target="_blank">下载高清原图</a>
+                    <a id="sourceBtn" class="btn-source" target="_blank">访问 Wallhaven 原网页</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 全局状态管理
+        let state = {
+            query: '',
+            categories: '100', // 100综合, 010动漫, 001人物
+            page: 1
+        };
+
+        const gallery = document.getElementById('gallery');
+        const loading = document.getElementById('loading');
+        const progressBar = document.getElementById('progressBar');
+        const proxies = [
+            'https://api.codetabs.com/v1/proxy/?quest=',
+            'https://api.allorigins.win/raw?url=',
+            'https://corsproxy.io/?url=' 
+        ];
+        const imgProxy = 'https://wsrv.nl/?url=';
+
+        function startProgress() { progressBar.style.width = '30%'; }
+        function endProgress() { progressBar.style.width = '100%'; setTimeout(() => progressBar.style.width = '0', 300); }
+
+        async function fetchWithProxies(targetUrl) {
+            for (let i = 0; i < proxies.length; i++) {
+                const proxy = proxies[i];
+                const fetchUrl = proxy.includes('allorigins') ? proxy + encodeURIComponent(targetUrl) : proxy + targetUrl;
+                try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 8000); // Wallhaven 数据可能较大，给 8 秒
+                    const res = await fetch(fetchUrl, { signal: controller.signal });
+                    clearTimeout(timeoutId);
+                    if (res.ok) return res;
+                } catch (e) { console.log('代理切换中...'); }
+            }
+            throw new Error('所有代理均请求失败');
+        }
+
+        function switchCat(btn) {
+            document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            state.categories = btn.dataset.cat;
+            state.page = 1;
+            loadWallhaven();
+        }
+
+        function doSearch() {
+            state.query = document.getElementById('searchInput').value.trim();
+            state.page = 1;
+            loadWallhaven();
+        }
+
+        function changePage(delta) {
+            state.page += delta;
+            if (state.page < 1) state.page = 1;
+            loadWallhaven();
+            // 回到顶部
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function createItem(data) {
+            const item = document.createElement('div');
+            item.className = 'item';
+            item.dataset.img = data.img;
+            item.dataset.title = data.title;
+            item.dataset.desc = data.desc;
+            item.dataset.source = data.source;
+            item.dataset.res = data.res;
+            item.dataset.link = data.link;
+            item.dataset.category = data.category || '通用';
+            
+            const img = document.createElement('img');
+            img.loading = 'lazy';
+            img.src = data.thumb;
+            img.onload = () => img.classList.add('loaded');
+            
+            const info = document.createElement('div');
+            info.className = 'info';
+            info.innerText = data.title;
+            
+            item.appendChild(img);
+            item.appendChild(info);
+            item.onclick = () => showDetail(item.dataset);
+            return item;
+        }
+
+        async function loadWallhaven() {
+            loading.style.display = 'block';
+            loading.innerText = '正在通过代理拉取 Wallhaven...';
+            gallery.innerHTML = '';
+            startProgress();
+
+            // 官方 API：分类、纯度(SFW)、排序(热度)、页码
+            let apiUrl = `https://wallhaven.cc/api/v1/search?categories=${state.categories}&purity=100&sorting=toplist&topRange=1M&page=${state.page}`;
+            if (state.query) {
+                apiUrl = `https://wallhaven.cc/api/v1/search?categories=${state.categories}&purity=100&q=${encodeURIComponent(state.query)}&page=${state.page}`;
+            }
+
+            try {
+                const res = await fetchWithProxies(apiUrl);
+                const data = await res.json();
+                loading.style.display = 'none';
+
+                if (data.data && data.data.length > 0) {
+                    const frag = document.createDocumentFragment();
+                    data.data.forEach(img => {
+                        const proxyThumb = imgProxy + encodeURIComponent(img.thumbs.large);
+                        const proxyFull = imgProxy + encodeURIComponent(img.path);
+                        
+                        frag.appendChild(createItem({
+                            img: proxyFull,
+                            thumb: proxyThumb,
+                            title: `Wallhaven #${img.id}`,
+                            desc: `分类: ${img.category} | 纯度: ${img.purity}`,
+                            source: 'Wallhaven',
+                            res: img.resolution,
+                            link: img.short_url || img.url,
+                            category: img.category
+                        }));
+                    });
+                    gallery.appendChild(frag);
+                } else {
+                    loading.innerText = '没有找到相关壁纸...';
+                    loading.style.display = 'block';
+                }
+
+                // 更新分页器状态
+                document.getElementById('currentPage').innerText = state.page;
+                document.getElementById('prevBtn').disabled = (state.page === 1);
+                // Wallhaven 没有直接返回总页数，如果本页少于 24 条，说明是最后一页
+                document.getElementById('nextBtn').disabled = (data.data.length < 24);
+
+            } catch (err) {
+                loading.innerText = 'Wallhaven 接口拉取失败，请稍后再试...';
+            }
+            endProgress();
+        }
+
+        function showDetail(data) {
+            document.getElementById('detailImg').src = data.img;
+            document.getElementById('detailTitle').innerText = data.title;
+            document.getElementById('detailRes').innerText = data.res;
+            document.getElementById('detailSource').innerText = data.source;
+            document.getElementById('detailCategory').innerText = data.category;
+            document.getElementById('detailDesc').innerText = data.desc;
+
+            const downloadBtn = document.getElementById('downloadBtn');
+            downloadBtn.href = data.img;
+            downloadBtn.setAttribute('download', data.title + '.jpg');
+
+            document.getElementById('sourceBtn').href = data.link;
+            document.getElementById('detailModal').style.display = 'flex';
+        }
+
+        function closeDetail() {
+            document.getElementById('detailModal').style.display = 'none';
+        }
+
+        document.getElementById('detailModal').addEventListener('click', function(e) {
+            if (e.target === this) closeDetail();
+        });
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') closeDetail();
+        });
+
+        // 初始化加载第一页
+        loadWallhaven();
+    </script>
+</body>
+</html><!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>极客壁纸站 | Bizhi</title>
     <style>
         :root { --bg: #0d1117; --surface: #161b22; --border: #30363d; --text: #c9d1d9; --subtext: #8b949e; --accent: #58a6ff; --green: #3fb950; }
