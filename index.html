@@ -66,7 +66,7 @@
 
     <header>
         <h1>Wallhaven 镜像站</h1>
-        <p>纯前端调用官方 API · 图片走 WordPress CDN 加速</p>
+        <p>API 源：wallhaven.clbug.com · 国内极速直连</p>
     </header>
 
     <div class="controls">
@@ -79,7 +79,7 @@
         <button class="cat-btn" data-cat="001" onclick="switchCat(this)">人物</button>
     </div>
 
-    <div id="loading" class="loading">正在拉取 Wallhaven 数据...</div>
+    <div id="loading" class="loading">正在拉取数据...</div>
     <div class="masonry" id="gallery"></div>
 
     <div class="pagination">
@@ -103,7 +103,7 @@
                 <p style="font-size: 0.85rem; color: var(--subtext); flex-grow: 1;" id="detailDesc">-</p>
                 <div class="btn-group">
                     <a id="downloadBtn" class="btn-download" download="" target="_blank">下载高清原图</a>
-                    <a id="sourceBtn" class="btn-source" target="_blank">访问 Wallhaven 原网页</a>
+                    <a id="sourceBtn" class="btn-source" target="_blank">访问来源网页</a>
                 </div>
             </div>
         </div>
@@ -116,19 +116,25 @@
         const loading = document.getElementById('loading');
         const progressBar = document.getElementById('progressBar');
         
-        // 优化后的代理列表：只保留最稳定的
+        // 代理列表，防止某些情况下镜像站依然有跨域限制
         const proxies = [
             'https://api.allorigins.win/raw?url=',
             'https://corsproxy.io/?url=' 
         ];
 
-        // 图片代理：使用 WordPress 全球 CDN 加速，完美绕过墙和防盗链
-        const imgProxy = 'https://i0.wp.com/';
-
         function startProgress() { progressBar.style.width = '30%'; }
         function endProgress() { progressBar.style.width = '100%'; setTimeout(() => progressBar.style.width = '0', 300); }
 
         async function fetchWithProxies(targetUrl) {
+            // 先尝试直连镜像站，如果跨域失败再走代理
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 6000);
+                const res = await fetch(targetUrl, { signal: controller.signal });
+                clearTimeout(timeoutId);
+                if (res.ok) return res;
+            } catch(e) { console.log('直连失败，尝试代理...'); }
+
             const encodedUrl = encodeURIComponent(targetUrl);
             for (let i = 0; i < proxies.length; i++) {
                 try {
@@ -139,7 +145,7 @@
                     if (res.ok) return res;
                 } catch (e) { console.log('代理切换中...'); }
             }
-            throw new Error('所有代理均请求失败');
+            throw new Error('所有请求均失败');
         }
 
         function switchCat(btn) {
@@ -177,7 +183,7 @@
             const img = document.createElement('img');
             img.loading = 'lazy';
             img.src = data.thumb;
-            img.onerror = () => { img.style.opacity = 0.2; }; // 加载失败时变暗，不再显示空白
+            img.onerror = () => { img.style.opacity = 0.2; };
             img.onload = () => img.classList.add('loaded');
             
             const info = document.createElement('div');
@@ -192,13 +198,14 @@
 
         async function loadWallhaven() {
             loading.style.display = 'block';
-            loading.innerText = '正在通过代理拉取 Wallhaven 数据...';
+            loading.innerText = '正在拉取数据...';
             gallery.innerHTML = '';
             startProgress();
 
-            let apiUrl = `https://wallhaven.cc/api/v1/search?categories=${state.categories}&purity=100&sorting=toplist&topRange=1M&page=${state.page}`;
+            // 核心修改：直接使用 clbug 镜像站的 API
+            let apiUrl = `https://wallhaven.clbug.com/api/v1/search?categories=${state.categories}&purity=100&sorting=toplist&topRange=1M&page=${state.page}`;
             if (state.query) {
-                apiUrl = `https://wallhaven.cc/api/v1/search?categories=${state.categories}&purity=100&q=${encodeURIComponent(state.query)}&page=${state.page}`;
+                apiUrl = `https://wallhaven.clbug.com/api/v1/search?categories=${state.categories}&purity=100&q=${encodeURIComponent(state.query)}&page=${state.page}`;
             }
 
             try {
@@ -209,13 +216,10 @@
                 if (data.data && data.data.length > 0) {
                     const frag = document.createDocumentFragment();
                     data.data.forEach(img => {
-                        // 拼接 WordPress CDN 代理链接
-                        const proxyThumb = imgProxy + img.thumbs.large;
-                        const proxyFull = imgProxy + img.path;
-                        
+                        // 镜像站返回的 path 和 thumbs 已经是镜像站的域名了，直接用即可，无需代理！
                         frag.appendChild(createItem({
-                            img: proxyFull,
-                            thumb: proxyThumb,
+                            img: img.path,
+                            thumb: img.thumbs.large,
                             title: `Wallhaven #${img.id}`,
                             desc: `分类: ${img.category} | 纯度: ${img.purity}`,
                             source: 'Wallhaven',
@@ -235,7 +239,7 @@
                 document.getElementById('nextBtn').disabled = (data.data.length < 24);
 
             } catch (err) {
-                loading.innerText = 'Wallhaven 接口拉取失败，请稍后再试...';
+                loading.innerText = '接口拉取失败，请稍后再试...';
             }
             endProgress();
         }
