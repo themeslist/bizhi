@@ -9,15 +9,14 @@
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; background: var(--bg); color: var(--text); }
         
-        /* 顶部进度条 */
         .progress-bar { position: fixed; top: 0; left: 0; height: 3px; width: 0; background: var(--accent); z-index: 9999; transition: width 0.3s; }
         
         header { text-align: center; padding: 40px 20px; border-bottom: 1px solid var(--border); margin-bottom: 20px; }
         header h1 { font-size: 2rem; color: var(--accent); }
         header p { color: var(--subtext); margin-top: 10px; }
         
-        .controls { display: flex; justify-content: center; gap: 12px; margin-bottom: 30px; flex-wrap: wrap; padding: 0 20px; }
-        .btn { background: var(--surface); color: var(--text); border: 1px solid var(--border); padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.2s; font-size: 0.9rem; }
+        .controls { display: flex; justify-content: center; gap: 10px; margin-bottom: 30px; flex-wrap: wrap; padding: 0 20px; }
+        .btn { background: var(--surface); color: var(--text); border: 1px solid var(--border); padding: 8px 14px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.2s; font-size: 0.85rem; }
         .btn:hover { border-color: var(--accent); color: var(--accent); }
         .btn.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
 
@@ -35,7 +34,6 @@
         
         .loading { text-align: center; padding: 50px; color: var(--subtext); }
 
-        /* 详情页 */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 1000; justify-content: center; align-items: center; padding: 20px; backdrop-filter: blur(8px); }
         .modal-content { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; max-width: 1200px; width: 100%; max-height: 90vh; display: flex; overflow: hidden; }
         .modal-img-area { flex: 2; background: #000; display: flex; justify-content: center; align-items: center; overflow: hidden; }
@@ -58,16 +56,18 @@
 
     <header>
         <h1>Bizhi - 极客壁纸站</h1>
-        <p>聚合全网高清壁纸 API (国内外全覆盖)</p>
+        <p>聚合全网高清壁纸 API (8大极速源)</p>
     </header>
 
     <div class="controls">
-        <button class="btn active" onclick="loadBing(event)">必应每日</button>
-        <button class="btn" onclick="loadWallhaven(event, '')">Wallhaven</button>
-        <button class="btn" onclick="loadRandom(event, 'dongman')">随机二次元</button>
-        <button class="btn" onclick="loadRandom(event, 'fengjing')">随机风景</button>
-        <button class="btn" onclick="load360(event, 21)">360 动漫</button>
-        <button class="btn" onclick="load360(event, 9)">360 风景</button>
+        <button class="btn active" onclick="loadJsonApi(event, 'bing')">必应每日</button>
+        <button class="btn" onclick="loadJsonApi(event, 'wallhaven')">Wallhaven</button>
+        <button class="btn" onclick="loadJsonApi(event, '360', 21)">360 动漫</button>
+        <button class="btn" onclick="loadJsonApi(event, '360', 9)">360 风景</button>
+        <button class="btn" onclick="loadRandomApi(event, 'picsum')">Picsum 摄影</button>
+        <button class="btn" onclick="loadRandomApi(event, 'dmoe')">樱花二次元</button>
+        <button class="btn" onclick="loadRandomApi(event, 'uomg')">UOMG 风景</button>
+        <button class="btn" onclick="loadRandomApi(event, 'yimian')">一言动漫</button>
     </div>
 
     <div id="loading" class="loading">正在拉取数据...</div>
@@ -153,138 +153,111 @@
             return item;
         }
 
-        // 1. 必应每日
-        async function loadBing(e) {
+        // 统一处理 JSON API (必应, Wallhaven, 360)
+        async function loadJsonApi(e, type, cid) {
             setActiveBtn(e.target);
             loading.style.display = 'block';
-            loading.innerText = '正在拉取必应数据...';
             gallery.innerHTML = '';
             startProgress();
             
-            const bingApi = 'https://cn.bing.com/HPImageArchive.aspx?format=js&idx=0&n=10&mkt=zh-CN';
+            let apiUrl = '';
+            let loadingText = '';
+            
+            if (type === 'bing') {
+                apiUrl = 'https://cn.bing.com/HPImageArchive.aspx?format=js&idx=0&n=10&mkt=zh-CN';
+                loadingText = '正在拉取必应数据...';
+            } else if (type === 'wallhaven') {
+                apiUrl = 'https://wallhaven.cc/api/v1/search?categories=100&purity=100&sorting=toplist&topRange=1M&page=1';
+                loadingText = '正在拉取 Wallhaven 数据...';
+            } else if (type === '360') {
+                apiUrl = `http://wallpaper.apc.360.cn/index.php?c=WallPaper&a=getAppsByCategory&cid=${cid}&start=0&count=24`;
+                loadingText = `正在拉取 360 壁纸 (${cid === 21 ? '动漫' : '风景'})...`;
+            }
+            
+            loading.innerText = loadingText;
+
             try {
-                const res = await fetchWithProxies(bingApi);
+                const res = await fetchWithProxies(apiUrl);
                 const data = await res.json();
                 loading.style.display = 'none';
                 
                 const frag = document.createDocumentFragment();
-                data.images.forEach(img => {
-                    const imgUrl = 'https://cn.bing.com' + img.url;
-                    frag.appendChild(createItem({
-                        img: imgUrl,
-                        thumb: imgUrl,
-                        title: img.copyright.split('(')[0].trim(),
-                        desc: img.copyright,
-                        source: 'Bing',
-                        res: '1920x1080 (可转4K)',
-                        link: 'https://cn.bing.com'
-                    }));
-                });
-                gallery.appendChild(frag);
-            } catch(err) { loading.innerText = '必应接口拉取失败...'; }
-            endProgress();
-        }
-
-        // 2. Wallhaven
-        async function loadWallhaven(e, tag = '') {
-            setActiveBtn(e.target);
-            loading.style.display = 'block';
-            loading.innerText = '正在拉取 Wallhaven 数据...';
-            gallery.innerHTML = '';
-            startProgress();
-            
-            let wallhavenApi = 'https://wallhaven.cc/api/v1/search?categories=100&purity=100&sorting=toplist&topRange=1M&page=1';
-            if (tag) wallhavenApi += `&q=${tag}`;
-            try {
-                const res = await fetchWithProxies(wallhavenApi);
-                const data = await res.json();
-                loading.style.display = 'none';
                 
-                if(data.data && data.data.length > 0) {
-                    const frag = document.createDocumentFragment();
-                    data.data.forEach(img => {
+                if (type === 'bing') {
+                    data.images.forEach(img => {
+                        const imgUrl = 'https://cn.bing.com' + img.url;
                         frag.appendChild(createItem({
-                            img: img.path,
-                            thumb: img.thumbs.large,
-                            title: `Wallhaven #${img.id}`,
-                            desc: `分类: ${img.category} | 纯度: ${img.purity}`,
-                            source: 'Wallhaven',
-                            res: img.resolution,
-                            link: img.short_url || img.url,
-                            category: img.category
+                            img: imgUrl, thumb: imgUrl,
+                            title: img.copyright.split('(')[0].trim(), desc: img.copyright,
+                            source: 'Bing', res: '1920x1080 (可转4K)', link: 'https://cn.bing.com'
                         }));
                     });
+                } else if (type === 'wallhaven') {
+                    if(data.data && data.data.length > 0) {
+                        data.data.forEach(img => {
+                            frag.appendChild(createItem({
+                                img: img.path, thumb: img.thumbs.large,
+                                title: `Wallhaven #${img.id}`, desc: `分类: ${img.category} | 纯度: ${img.purity}`,
+                                source: 'Wallhaven', res: img.resolution, link: img.short_url || img.url, category: img.category
+                            }));
+                        });
+                    }
+                } else if (type === '360') {
+                    if(data.data && data.data.length > 0) {
+                        data.data.forEach(img => {
+                            frag.appendChild(createItem({
+                                img: img.download_url.replace('http://', 'https://'),
+                                thumb: img.url.replace('http://', 'https://'),
+                                title: img.tag || `360 壁纸`, desc: `来自 360 壁纸库`,
+                                source: '360', res: img.size || '未知', link: 'https://image.so.com/', category: cid === 21 ? '动漫' : '风景'
+                            }));
+                        });
+                    }
+                }
+                
+                if (frag.childNodes.length > 0) {
                     gallery.appendChild(frag);
-                } else { loading.innerText = '没有找到相关壁纸...'; loading.style.display = 'block'; }
-            } catch(err) { loading.innerText = 'Wallhaven 接口拉取失败...'; }
+                } else {
+                    loading.innerText = '没有找到相关壁纸...'; loading.style.display = 'block';
+                }
+            } catch(err) { loading.innerText = '接口拉取失败，请稍后再试...'; }
             endProgress();
         }
 
-        // 3. 随机二次元/风景 (UOMG API 极速直连版)
-        function loadRandom(e, type) {
+        // 统一处理随机直连图片 API (性能极速版)
+        function loadRandomApi(e, type) {
             setActiveBtn(e.target);
             loading.style.display = 'none';
             gallery.innerHTML = '';
             startProgress();
             
             const frag = document.createDocumentFragment();
-            const typeName = type === 'dongman' ? '二次元' : '风景';
+            const count = 20; // 每次加载 20 张
             
-            // 直接循环生成 20 张图，利用随机数防缓存
-            for (let i = 0; i < 20; i++) {
-                const imgUrl = `https://api.uomg.com/api/rand.img3?lx=${type}&r=${Math.random()}`;
+            for (let i = 0; i < count; i++) {
+                let imgUrl = '', title = '', source = '', link = '', res = '随机分辨率', cat = '通用';
+                
+                if (type === 'picsum') {
+                    imgUrl = `https://picsum.photos/800/1200?random=${i}_${Math.random()}`;
+                    title = `Picsum 摄影 #${i+1}`; source = 'Lorem Picsum'; link = 'https://picsum.photos/'; cat = '摄影';
+                } else if (type === 'dmoe') {
+                    imgUrl = `https://www.dmoe.cc/random.php?${i}_${Math.random()}`;
+                    title = `樱花二次元 #${i+1}`; source = 'Dmoe'; link = 'https://www.dmoe.cc/'; cat = '二次元';
+                } else if (type === 'uomg') {
+                    imgUrl = `https://api.uomg.com/api/rand.img3?lx=fengjing&r=${i}_${Math.random()}`;
+                    title = `UOMG 风景 #${i+1}`; source = 'UOMG'; link = 'https://api.uomg.com/'; cat = '风景';
+                } else if (type === 'yimian') {
+                    imgUrl = `https://api.yimian.xyz/img?type=moe&size=800x1200&${i}_${Math.random()}`;
+                    title = `一言动漫 #${i+1}`; source = 'Yimian'; link = 'https://api.yimian.xyz/'; cat = '二次元';
+                }
+                
                 frag.appendChild(createItem({
-                    img: imgUrl,
-                    thumb: imgUrl, // 缩略图和原图一致，浏览器自适应缩放
-                    title: `随机${typeName} #${i + 1}`,
-                    desc: '点击查看大图并下载',
-                    source: 'UOMG',
-                    res: '随机分辨率',
-                    link: 'https://api.uomg.com/api/rand.img3',
-                    category: typeName
+                    img: imgUrl, thumb: imgUrl,
+                    title: title, desc: '点击查看大图并下载',
+                    source: source, res: res, link: link, category: cat
                 }));
             }
             gallery.appendChild(frag);
-            endProgress();
-        }
-
-        // 4. 360 壁纸库 (国内极速版)
-        async function load360(e, cid) {
-            setActiveBtn(e.target);
-            loading.style.display = 'block';
-            const catName = cid === 21 ? '动漫' : '风景';
-            loading.innerText = `正在拉取 360 壁纸 (${catName})...`;
-            gallery.innerHTML = '';
-            startProgress();
-
-            // cid: 9风景, 21动漫, 5美女, 4游戏
-            const api360 = `http://wallpaper.apc.360.cn/index.php?c=WallPaper&a=getAppsByCategory&cid=${cid}&start=0&count=24`;
-            
-            try {
-                const res = await fetchWithProxies(api360);
-                const data = await res.json();
-                loading.style.display = 'none';
-
-                if(data.data && data.data.length > 0) {
-                    const frag = document.createDocumentFragment();
-                    data.data.forEach(img => {
-                        // 360 的图片是 http 的，我们强制换成 https 才能在 GitHub Pages 上显示
-                        const imgUrl = img.url.replace('http://', 'https://');
-                        const downloadUrl = img.download_url.replace('http://', 'https://');
-                        
-                        frag.appendChild(createItem({
-                            img: downloadUrl, // 原图地址
-                            thumb: imgUrl,    // 缩略图地址
-                            title: img.tag || `360 ${catName}`,
-                            desc: `来自 360 壁纸库`,
-                            source: '360',
-                            res: img.size || '未知',
-                            link: 'https://image.so.com/'
-                        }));
-                    });
-                    gallery.appendChild(frag);
-                } else { loading.innerText = '没有找到相关壁纸...'; loading.style.display = 'block'; }
-            } catch(err) { loading.innerText = '360 接口拉取失败...'; }
             endProgress();
         }
 
@@ -321,8 +294,8 @@
             if(e.key === 'Escape') closeDetail();
         });
 
-        // 初始化
-        loadBing({ target: document.querySelector('.btn') });
+        // 初始化加载必应
+        loadJsonApi({ target: document.querySelector('.btn') }, 'bing');
     </script>
 </body>
 </html>
