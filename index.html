@@ -16,8 +16,8 @@
         header h1 { font-size: 2rem; color: var(--accent); }
         header p { color: var(--subtext); margin-top: 10px; }
         
-        .controls { display: flex; justify-content: center; gap: 15px; margin-bottom: 30px; flex-wrap: wrap; }
-        .btn { background: var(--surface); color: var(--text); border: 1px solid var(--border); padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.2s; }
+        .controls { display: flex; justify-content: center; gap: 12px; margin-bottom: 30px; flex-wrap: wrap; padding: 0 20px; }
+        .btn { background: var(--surface); color: var(--text); border: 1px solid var(--border); padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.2s; font-size: 0.9rem; }
         .btn:hover { border-color: var(--accent); color: var(--accent); }
         .btn.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
 
@@ -58,14 +58,16 @@
 
     <header>
         <h1>Bizhi - 极客壁纸站</h1>
-        <p>聚合 Wallhaven 与 必应每日高清壁纸</p>
+        <p>聚合全网高清壁纸 API (国内外全覆盖)</p>
     </header>
 
     <div class="controls">
         <button class="btn active" onclick="loadBing(event)">必应每日</button>
-        <button class="btn" onclick="loadWallhaven(event, '')">Wallhaven 热门</button>
-        <button class="btn" onclick="loadWallhaven(event, 'anime')">Wallhaven 动漫</button>
-        <button class="btn" onclick="loadWallhaven(event, 'landscape')">Wallhaven 风景</button>
+        <button class="btn" onclick="loadWallhaven(event, '')">Wallhaven</button>
+        <button class="btn" onclick="loadRandom(event, 'dongman')">随机二次元</button>
+        <button class="btn" onclick="loadRandom(event, 'fengjing')">随机风景</button>
+        <button class="btn" onclick="load360(event, 21)">360 动漫</button>
+        <button class="btn" onclick="load360(event, 9)">360 风景</button>
     </div>
 
     <div id="loading" class="loading">正在拉取数据...</div>
@@ -102,7 +104,6 @@
             'https://corsproxy.io/?url=' 
         ];
 
-        // 进度条动画
         function startProgress() { progressBar.style.width = '30%'; }
         function endProgress() { progressBar.style.width = '100%'; setTimeout(() => progressBar.style.width = '0', 300); }
 
@@ -126,7 +127,6 @@
             btn.classList.add('active');
         }
 
-        // 创建图片卡片，优化 DOM 操作
         function createItem(data) {
             const item = document.createElement('div');
             item.className = 'item';
@@ -140,7 +140,7 @@
             
             const img = document.createElement('img');
             img.loading = 'lazy';
-            img.src = data.thumb; // 核心优化：缩略图直连官方CDN，不走代理！
+            img.src = data.thumb;
             img.onload = () => img.classList.add('loaded');
             
             const info = document.createElement('div');
@@ -153,6 +153,7 @@
             return item;
         }
 
+        // 1. 必应每日
         async function loadBing(e) {
             setActiveBtn(e.target);
             loading.style.display = 'block';
@@ -171,7 +172,7 @@
                     const imgUrl = 'https://cn.bing.com' + img.url;
                     frag.appendChild(createItem({
                         img: imgUrl,
-                        thumb: imgUrl, // 必应缩略图直接用原图，速度也很快
+                        thumb: imgUrl,
                         title: img.copyright.split('(')[0].trim(),
                         desc: img.copyright,
                         source: 'Bing',
@@ -184,6 +185,7 @@
             endProgress();
         }
 
+        // 2. Wallhaven
         async function loadWallhaven(e, tag = '') {
             setActiveBtn(e.target);
             loading.style.display = 'block';
@@ -202,8 +204,8 @@
                     const frag = document.createDocumentFragment();
                     data.data.forEach(img => {
                         frag.appendChild(createItem({
-                            img: img.path, // 原图直连
-                            thumb: img.thumbs.large, // 缩略图直连
+                            img: img.path,
+                            thumb: img.thumbs.large,
                             title: `Wallhaven #${img.id}`,
                             desc: `分类: ${img.category} | 纯度: ${img.purity}`,
                             source: 'Wallhaven',
@@ -218,6 +220,74 @@
             endProgress();
         }
 
+        // 3. 随机二次元/风景 (UOMG API 极速直连版)
+        function loadRandom(e, type) {
+            setActiveBtn(e.target);
+            loading.style.display = 'none';
+            gallery.innerHTML = '';
+            startProgress();
+            
+            const frag = document.createDocumentFragment();
+            const typeName = type === 'dongman' ? '二次元' : '风景';
+            
+            // 直接循环生成 20 张图，利用随机数防缓存
+            for (let i = 0; i < 20; i++) {
+                const imgUrl = `https://api.uomg.com/api/rand.img3?lx=${type}&r=${Math.random()}`;
+                frag.appendChild(createItem({
+                    img: imgUrl,
+                    thumb: imgUrl, // 缩略图和原图一致，浏览器自适应缩放
+                    title: `随机${typeName} #${i + 1}`,
+                    desc: '点击查看大图并下载',
+                    source: 'UOMG',
+                    res: '随机分辨率',
+                    link: 'https://api.uomg.com/api/rand.img3',
+                    category: typeName
+                }));
+            }
+            gallery.appendChild(frag);
+            endProgress();
+        }
+
+        // 4. 360 壁纸库 (国内极速版)
+        async function load360(e, cid) {
+            setActiveBtn(e.target);
+            loading.style.display = 'block';
+            const catName = cid === 21 ? '动漫' : '风景';
+            loading.innerText = `正在拉取 360 壁纸 (${catName})...`;
+            gallery.innerHTML = '';
+            startProgress();
+
+            // cid: 9风景, 21动漫, 5美女, 4游戏
+            const api360 = `http://wallpaper.apc.360.cn/index.php?c=WallPaper&a=getAppsByCategory&cid=${cid}&start=0&count=24`;
+            
+            try {
+                const res = await fetchWithProxies(api360);
+                const data = await res.json();
+                loading.style.display = 'none';
+
+                if(data.data && data.data.length > 0) {
+                    const frag = document.createDocumentFragment();
+                    data.data.forEach(img => {
+                        // 360 的图片是 http 的，我们强制换成 https 才能在 GitHub Pages 上显示
+                        const imgUrl = img.url.replace('http://', 'https://');
+                        const downloadUrl = img.download_url.replace('http://', 'https://');
+                        
+                        frag.appendChild(createItem({
+                            img: downloadUrl, // 原图地址
+                            thumb: imgUrl,    // 缩略图地址
+                            title: img.tag || `360 ${catName}`,
+                            desc: `来自 360 壁纸库`,
+                            source: '360',
+                            res: img.size || '未知',
+                            link: 'https://image.so.com/'
+                        }));
+                    });
+                    gallery.appendChild(frag);
+                } else { loading.innerText = '没有找到相关壁纸...'; loading.style.display = 'block'; }
+            } catch(err) { loading.innerText = '360 接口拉取失败...'; }
+            endProgress();
+        }
+
         function showDetail(data) {
             document.getElementById('detailImg').src = data.img;
             document.getElementById('detailTitle').innerText = data.title;
@@ -228,7 +298,7 @@
             
             let downloadUrl = data.img;
             if(data.source === 'Bing') {
-                downloadUrl = data.img.replace('_1920x1080', '_UHD'); // 必应4K黑科技
+                downloadUrl = data.img.replace('_1920x1080', '_UHD');
             }
 
             const downloadBtn = document.getElementById('downloadBtn');
