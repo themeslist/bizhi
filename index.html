@@ -3,276 +3,410 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Wallhaven 镜像站 | Bizhi</title>
+    <title>Bizhi - 极客壁纸导航</title>
     <style>
-        :root { --bg: #0d1117; --surface: #161b22; --border: #30363d; --text: #c9d1d9; --subtext: #8b949e; --accent: #58a6ff; --green: #3fb950; }
+        :root {
+            --bg: #0d1117;
+            --surface: #161b22;
+            --border: #30363d;
+            --text: #c9d1d9;
+            --subtext: #8b949e;
+            --accent: #58a6ff;
+            --green: #3fb950;
+        }
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; background: var(--bg); color: var(--text); }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
         
-        .progress-bar { position: fixed; top: 0; left: 0; height: 3px; width: 0; background: var(--accent); z-index: 9999; transition: width 0.3s; }
-        
-        header { text-align: center; padding: 30px 20px 20px; border-bottom: 1px solid var(--border); margin-bottom: 20px; }
-        header h1 { font-size: 1.8rem; color: var(--accent); }
-        header p { color: var(--subtext); margin-top: 5px; font-size: 0.9rem; }
-        
-        .controls { display: flex; justify-content: center; align-items: center; gap: 12px; margin-bottom: 25px; flex-wrap: wrap; padding: 0 20px; }
-        .search-box { display: flex; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
-        .search-box input { background: transparent; border: none; outline: none; color: var(--text); padding: 8px 12px; width: 200px; font-size: 0.9rem; }
-        .search-box button { background: var(--accent); color: #000; border: none; padding: 0 15px; cursor: pointer; font-weight: 700; }
-        
-        .cat-btn { background: var(--surface); color: var(--subtext); border: 1px solid var(--border); padding: 8px 14px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.2s; font-size: 0.85rem; }
-        .cat-btn:hover { color: var(--text); }
-        .cat-btn.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+        header { text-align: center; padding: 60px 20px 40px; border-bottom: 1px solid var(--border); }
+        header h1 { font-size: 2.8rem; font-weight: 800; color: var(--text); margin-bottom: 10px; }
+        header h1 span { color: var(--accent); }
+        header p { color: var(--subtext); font-size: 1.1rem; margin-bottom: 30px; }
 
-        .masonry { column-count: 4; column-gap: 15px; padding: 0 20px 40px; }
-        @media (max-width: 1200px) { .masonry { column-count: 3; } }
-        @media (max-width: 800px) { .masonry { column-count: 2; } }
-        @media (max-width: 500px) { .masonry { column-count: 1; } }
+        .search-container { max-width: 600px; margin: 0 auto; display: flex; gap: 10px; }
+        .search-container input { flex: 1; padding: 12px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 1rem; outline: none; }
+        .search-container input:focus { border-color: var(--accent); }
+        .search-container select { padding: 0 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; color: var(--subtext); cursor: pointer; }
+        .search-container button { padding: 12px 20px; background: var(--accent); color: #000; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; }
 
-        .item { break-inside: avoid; margin-bottom: 15px; border-radius: 8px; overflow: hidden; position: relative; cursor: pointer; border: 1px solid var(--border); background: var(--surface); }
-        .item img { width: 100%; display: block; transition: transform 0.3s, opacity 0.3s; opacity: 0; }
-        .item img.loaded { opacity: 1; }
-        .item:hover img { transform: scale(1.05); }
-        .item .info { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(transparent, rgba(0,0,0,0.9)); padding: 30px 10px 10px; font-size: 0.8rem; color: #fff; opacity: 0; transition: opacity 0.3s; }
-        .item:hover .info { opacity: 1; }
+        .container { max-width: 1000px; margin: 0 auto; padding: 40px 20px; }
         
-        .loading { text-align: center; padding: 50px; color: var(--subtext); }
+        .category { margin-bottom: 50px; }
+        .category-title { font-size: 1.2rem; color: var(--green); margin-bottom: 20px; border-bottom: 1px dashed var(--border); padding-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+        .category-title::before { content: '▸'; color: var(--green); }
+        
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+        
+        .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 20px; text-decoration: none; color: var(--text); transition: all 0.2s ease; display: flex; flex-direction: column; justify-content: space-between; }
+        .card:hover { border-color: var(--accent); transform: translateY(-3px); box-shadow: 0 4px 12px rgba(88, 166, 255, 0.1); }
+        
+        .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+        .card-name { font-size: 1.1rem; font-weight: 700; color: var(--text); }
+        
+        /* 访问性角标 */
+        .tag { font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; font-weight: 600; letter-spacing: 0.5px; }
+        .tag-cn { background: rgba(63, 185, 80, 0.15); color: var(--green); border: 1px solid rgba(63, 185, 80, 0.4); }
+        .tag-global { background: rgba(88, 166, 255, 0.15); color: var(--accent); border: 1px solid rgba(88, 166, 255, 0.4); }
+        
+        .card-desc { font-size: 0.85rem; color: var(--subtext); margin-bottom: 12px; flex-grow: 1; }
+        .card-link { font-size: 0.8rem; color: var(--accent); font-family: monospace; display: flex; align-items: center; gap: 6px; }
+        .card-link::after { content: '↗'; font-size: 1rem; }
 
-        .pagination { display: flex; justify-content: center; gap: 15px; padding: 30px 20px; border-top: 1px solid var(--border); }
-        .page-btn { background: var(--surface); color: var(--text); border: 1px solid var(--border); padding: 10px 25px; border-radius: 8px; cursor: pointer; font-weight: 700; transition: all 0.2s; }
-        .page-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
-        .page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-        .page-info { color: var(--subtext); display: flex; align-items: center; font-weight: 600; }
-
-        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 1000; justify-content: center; align-items: center; padding: 20px; backdrop-filter: blur(8px); }
-        .modal-content { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; max-width: 1200px; width: 100%; max-height: 90vh; display: flex; overflow: hidden; }
-        .modal-img-area { flex: 2; background: #000; display: flex; justify-content: center; align-items: center; overflow: hidden; }
-        .modal-img-area img { max-width: 100%; max-height: 90vh; object-fit: contain; }
-        .modal-info-area { flex: 1; padding: 30px; display: flex; flex-direction: column; gap: 20px; overflow-y: auto; }
-        .modal-info-area h2 { color: var(--accent); font-size: 1.4rem; }
-        .meta-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
-        .meta-label { color: var(--subtext); }
-        .meta-value { color: var(--text); font-weight: 600; text-align: right; }
-        .btn-group { margin-top: auto; display: flex; flex-direction: column; gap: 10px; }
-        .btn-download { background: var(--green); color: #000; text-align: center; text-decoration: none; padding: 12px; border-radius: 6px; font-weight: 700; border: none; cursor: pointer; }
-        .btn-source { background: transparent; color: var(--subtext); text-align: center; text-decoration: none; padding: 12px; border-radius: 6px; border: 1px solid var(--border); }
-        .btn-source:hover { border-color: var(--accent); color: var(--accent); }
-        .close-btn { position: absolute; top: 20px; right: 30px; color: #fff; font-size: 2rem; cursor: pointer; z-index: 1001; }
+        footer { text-align: center; padding: 40px 20px; color: var(--subtext); font-size: 0.9rem; border-top: 1px solid var(--border); margin-top: 40px; }
     </style>
 </head>
 <body>
 
-    <div class="progress-bar" id="progressBar"></div>
-
     <header>
-        <h1>Wallhaven 镜像站</h1>
-        <p>API 源：wallhaven.clbug.com · 国内极速直连</p>
-    </header>
-
-    <div class="controls">
-        <div class="search-box">
-            <input type="text" id="searchInput" placeholder="搜索壁纸 (如: landscape)" onkeydown="if(event.key==='Enter') doSearch()">
+        <h1>Bizhi<span>.</span>Hub</h1>
+        <p>极客壁纸资源大本营 · 28 个精选站点 · 标明访问权限</p>
+        <div class="search-container">
+            <input type="text" id="searchInput" placeholder="输入关键词搜索壁纸..." onkeydown="if(event.key==='Enter') doSearch()">
+            <select id="searchEngine">
+                <option value="bing">必应图片</option>
+                <option value="pixabay">Pixabay</option>
+                <option value="unsplash">Unsplash</option>
+                <option value="wallhaven">Wallhaven</option>
+            </select>
             <button onclick="doSearch()">搜索</button>
         </div>
-        <button class="cat-btn active" data-cat="100" onclick="switchCat(this)">综合</button>
-        <button class="cat-btn" data-cat="010" onclick="switchCat(this)">动漫</button>
-        <button class="cat-btn" data-cat="001" onclick="switchCat(this)">人物</button>
-    </div>
+    </header>
 
-    <div id="loading" class="loading">正在拉取数据...</div>
-    <div class="masonry" id="gallery"></div>
-
-    <div class="pagination">
-        <button class="page-btn" id="prevBtn" onclick="changePage(-1)">上一页</button>
-        <div class="page-info">第 <span id="currentPage">1</span> 页</div>
-        <button class="page-btn" id="nextBtn" onclick="changePage(1)">下一页</button>
-    </div>
-
-    <div class="modal-overlay" id="detailModal">
-        <span class="close-btn" onclick="closeDetail()">&times;</span>
-        <div class="modal-content">
-            <div class="modal-img-area">
-                <img id="detailImg" src="" alt="Preview">
-            </div>
-            <div class="modal-info-area">
-                <h2 id="detailTitle">壁纸详情</h2>
-                <div class="meta-row"><span class="meta-label">分辨率</span><span class="meta-value" id="detailRes">-</span></div>
-                <div class="meta-row"><span class="meta-label">来源</span><span class="meta-value" id="detailSource">-</span></div>
-                <div class="meta-row"><span class="meta-label">分类</span><span class="meta-value" id="detailCategory">-</span></div>
-                <div class="meta-row" style="border: none;"><span class="meta-label">描述</span></div>
-                <p style="font-size: 0.85rem; color: var(--subtext); flex-grow: 1;" id="detailDesc">-</p>
-                <div class="btn-group">
-                    <a id="downloadBtn" class="btn-download" download="" target="_blank">下载高清原图</a>
-                    <a id="sourceBtn" class="btn-source" target="_blank">访问来源网页</a>
-                </div>
+    <div class="container">
+        
+        <!-- 顶级综合与社区 -->
+        <div class="category">
+            <div class="category-title">顶级综合与社区</div>
+            <div class="grid">
+                <a class="card" href="https://wallhaven.cc/" target="_blank">
+                    <div>
+                        <div class="card-header">
+                            <span class="card-name">Wallhaven</span>
+                            <span class="tag tag-global">国际</span>
+                        </div>
+                        <div class="card-desc">全球最强壁纸社区，二次元、风景、人物应有尽有。</div>
+                    </div>
+                    <div class="card-link">访问网站</div>
+                </a>
+                <a class="card" href="https://wallhere.com/" target="_blank">
+                    <div>
+                        <div class="card-header">
+                            <span class="card-name">Wallhere</span>
+                            <span class="tag tag-cn">国内直连</span>
+                        </div>
+                        <div class="card-desc">老牌壁纸站，国内访问相对友好，图量大。</div>
+                    </div>
+                    <div class="card-link">访问网站</div>
+                </a>
+                <a class="card" href="https://bz.zzzmh.cn/" target="_blank">
+                    <div>
+                        <div class="card-header">
+                            <span class="card-name">极简壁纸</span>
+                            <span class="tag tag-cn">国内直连</span>
+                        </div>
+                        <div class="card-desc">国内极速壁纸站，分类清晰，动漫壁纸极多。</div>
+                    </div>
+                    <div class="card-link">访问网站</div>
+                </a>
+                <a class="card" href="https://www.desktopnexus.com/" target="_blank">
+                    <div>
+                        <div class="card-header">
+                            <span class="card-name">DesktopNexus</span>
+                            <span class="tag tag-global">国际</span>
+                        </div>
+                        <div class="card-desc">老牌综合壁纸站，按分辨率和主题分类非常细致。</div>
+                    </div>
+                    <div class="card-link">访问网站</div>
+                </a>
+                <a class="card" href="https://simpledesktops.com/" target="_blank">
+                    <div>
+                        <div class="card-header">
+                            <span class="card-name">Simple Desktops</span>
+                            <span class="tag tag-global">国际</span>
+                        </div>
+                        <div class="card-desc">极简主义壁纸专属站点，拒绝花哨，只留纯粹。</div>
+                    </div>
+                    <div class="card-link">访问网站</div>
+                </a>
+                <a class="card" href="https://interfacelift.com/" target="_blank">
+                    <div>
+                        <div class="card-header">
+                            <span class="card-name">InterfaceLIFT</span>
+                            <span class="tag tag-global">国际</span>
+                        </div>
+                        <div class="card-desc">高颜值摄影风景壁纸，4K/5K/8K 分辨率齐备。</div>
+                    </div>
+                    <div class="card-link">访问网站</div>
+                </a>
+                <a class="card" href="https://desk.zol.com.cn/" target="_blank">
+                    <div>
+                        <div class="card-header">
+                            <span class="card-name">中关村在线桌面</span>
+                            <span class="tag tag-cn">国内直连</span>
+                        </div>
+                        <div class="card-desc">国内老牌 IT 门户的壁纸频道，资源极多。</div>
+                    </div>
+                    <div class="card-link">访问网站</div>
+                </a>
+                <a class="card" href="https://www.enterdesk.com/" target="_blank">
+                    <div>
+                        <div class="card-header">
+                            <span class="card-name">回车桌面</span>
+                            <span class="tag tag-cn">国内直连</span>
+                        </div>
+                        <div class="card-desc">国内老牌壁纸站，美女、风景、动漫分类齐全。</div>
+                    </div>
+                    <div class="card-link">访问网站</div>
+                </a>
             </div>
         </div>
+
+        <!-- 无版权高清摄影 -->
+        <div class="category">
+            <div class="category-title">无版权高清摄影</div>
+            <div class="grid">
+                <a class="card" href="https://pixabay.com/" target="_blank">
+                    <div>
+                        <div class="card-header">
+                            <span class="card-name">Pixabay</span>
+                            <span class="tag tag-cn">国内直连</span>
+                        </div>
+                        <div class="card-desc">海量免费商用图片，支持中文搜索，国内速度极佳。</div>
+                    </div>
+                    <div class="card-link">访问网站</div>
+                </a>
+                <a class="card" href="https://www.pexels.com/" target="_blank">
+                    <div>
+                        <div class="card-header">
+                            <span class="card-name">Pexels</span>
+                            <span class="tag tag-global">国际</span>
+                        </div>
+                        <div class="card-desc">强大的免费图片和视频素材库，摄影师首选。</div>
+                    </div>
+                    <div class="card-link">访问网站</div>
+                </a>
+                <a class="card" href="https://unsplash.com/" target="_blank">
+                    <div>
+                        <div class="card-header">
+                            <span class="card-name">Unsplash</span>
+                            <span class="tag tag-global">国际</span>
+                        </div>
+                        <div class="card-desc">全球最知名的无版权高清摄影图库，神图频出。</div>
+                    </div>
+                    <div class="card-link">访问网站</div>
+                </a>
+                <a class="card" href="https://stocksnap.io/" target="_blank">
+                    <div>
+                        <div class="card-header">
+                            <span class="card-name">StockSnap</span>
+                            <span class="tag tag-global">国际</span>
+                        </div>
+                        <div class="card-desc">高质量数码摄影图库，搜索功能强大。</div>
+                    </div>
+                    <div class="card-link">访问网站</div>
+                </a>
+                <a class="card" href="https://699pic.com/" target="_blank">
+                    <div>
+                        <div class="card-header">
+                            <span class="card-name">摄图网</span>
+                            <span class="tag tag-cn">国内直连</span>
+                        </div>
+                        <div class="card-desc">国内正版商用图库，速度极快，含大量配图。</div>
+                    </div>
+                    <div class="card-link">访问网站</div>
+                </a>
+                <a class="card" href="https://www.58pic.com/" target="_blank">
+                    <div>
+                        <div class="card-header">
+                            <span class="card-name">千图网</span>
+                            <span class="tag tag-cn">国内直连</span>
+                        </div>
+                        <div class="card-desc">国内老牌免费素材站，含大量免抠图片。</div>
+                    </div>
+                    <div class="card-link">访问网站</div>
+                </a>
+            </div>
+        </div>
+
+        <!-- 二次元 & 动漫 -->
+        <div class="category">
+            <div class="category-title">二次元 & 动漫</div>
+            <div class="grid">
+                <a class="card" href="https://zerotwo.net/" target="_blank">
+                    <div>
+                        <div class="card-header">
+                            <span class="card-name">ZeroTwo</span>
+                            <span class="tag tag-cn">国内直连</span>
+                        </div>
+                        <div class="card-desc">高质量二次元壁纸聚合站，UI 极美。</div>
+                    </div>
+                    <div class="card-link">访问网站</div>
+                </a>
+                <a class="card" href="https://konachan.com/" target="_blank">
+                    <div>
+                        <div class="card-header">
+                            <span class="card-name">Konachan</span>
+                            <span class="tag tag-global">国际</span>
+                        </div>
+                        <div class="card-desc">老牌二次元图库 (含尺度，注意年龄分级)。</div>
+                    </div>
+                    <div class="card-link">访问网站</div>
+                </a>
+                <a class="card" href="https://yande.re/" target="_blank">
+                    <div>
+                        <div class="card-header">
+                            <span class="card-name">Yande.re</span>
+                            <span class="tag tag-global">国际</span>
+                        </div>
+                        <div class="card-desc">高质量动漫插画墙，画师精选合集。</div>
+                    </div>
+                    <div class="card-link">访问网站</div>
+                </a>
+                <a class="card" href="https://www.pixiv.net/" target="_blank">
+                    <div>
+                        <div class="card-header">
+                            <span class="card-name">Pixiv</span>
+                            <span class="tag tag-global">国际</span>
+                        </div>
+                        <div class="card-desc">P站，全球最大的日本动漫画师交流平台。</div>
+                    </div>
+                    <div class="card-link">访问网站</div>
+                </a>
+                <a class="card" href="https://www.yuume.net/" target="_blank">
+                    <div>
+                        <div class="card-header">
+                            <span class="card-name">Yuume Art</span>
+                            <span class="tag tag-global">国际</span>
+                        </div>
+                        <div class="card-desc">知名画师 Wendy Xu 的个人作品集，神级美术。</div>
+                    </div>
+                    <div class="card-link">访问网站</div>
+                </a>
+                <a class="card" href="https://www.bizhizu.cn/" target="_blank">
+                    <div>
+                        <div class="card-header">
+                            <span class="card-name">壁纸岛</span>
+                            <span class="tag tag-cn">国内直连</span>
+                        </div>
+                        <div class="card-desc">国内二次元与美女壁纸聚集地。</div>
+                    </div>
+                    <div class="card-link">访问网站</div>
+                </a>
+            </div>
+        </div>
+
+        <!-- 特色工具与引擎 -->
+        <div class="category">
+            <div class="category-title">特色工具与引擎</div>
+            <div class="grid">
+                <a class="card" href="https://bing.ioliu.cn/" target="_blank">
+                    <div>
+                        <div class="card-header">
+                            <span class="card-name">必应每日高清</span>
+                            <span class="tag tag-cn">国内直连</span>
+                        </div>
+                        <div class="card-desc">国内极速加载的必应每日壁纸历史库。</div>
+                    </div>
+                    <div class="card-link">访问网站</div>
+                </a>
+                <a class="card" href="https://coolors.co/" target="_blank">
+                    <div>
+                        <div class="card-header">
+                            <span class="card-name">Coolors</span>
+                            <span class="tag tag-global">国际</span>
+                        </div>
+                        <div class="card-desc">配色方案生成器，挑壁纸顺便找桌面配色灵感。</div>
+                    </div>
+                    <div class="card-link">访问网站</div>
+                </a>
+                <a class="card" href="https://steamcommunity.com/workshop/browse?appid=431960" target="_blank">
+                    <div>
+                        <div class="card-header">
+                            <span class="card-name">Wallpaper Engine</span>
+                            <span class="tag tag-global">国际</span>
+                        </div>
+                        <div class="card-desc">Steam 创意工坊动态壁纸官方引擎库。</div>
+                    </div>
+                    <div class="card-link">访问创意工坊</div>
+                </a>
+                <a class="card" href="https://dynamicwallpaper.club/" target="_blank">
+                    <div>
+                        <div class="card-header">
+                            <span class="card-name">Dynamic Wallpaper</span>
+                            <span class="tag tag-global">国际</span>
+                        </div>
+                        <div class="card-desc">Mac 用户专属的动态壁纸库 (heic 格式)。</div>
+                    </div>
+                    <div class="card-link">访问网站</div>
+                </a>
+                <a class="card" href="https://www.lovebizhi.com/" target="_blank">
+                    <div>
+                        <div class="card-header">
+                            <span class="card-name">爱壁纸</span>
+                            <span class="tag tag-cn">国内直连</span>
+                        </div>
+                        <div class="card-desc">老牌壁纸站，提供大量手机竖屏高清壁纸。</div>
+                    </div>
+                    <div class="card-link">访问网站</div>
+                </a>
+                <a class="card" href="https://wallpaperscraft.com/" target="_blank">
+                    <div>
+                        <div class="card-header">
+                            <span class="card-name">WallpapersCraft</span>
+                            <span class="tag tag-global">国际</span>
+                        </div>
+                        <div class="card-desc">按分辨率严格筛选的高清桌面站。</div>
+                    </div>
+                    <div class="card-link">访问网站</div>
+                </a>
+                <a class="card" href="https://www.cosmopolitan.com.hk/" target="_blank">
+                    <div>
+                        <div class="card-header">
+                            <span class="card-name">设计灵感导航</span>
+                            <span class="tag tag-cn">国内直连</span>
+                        </div>
+                        <div class="card-desc">聚合了国内外各大顶尖壁纸与设计素材网站。</div>
+                    </div>
+                    <div class="card-link">访问网站</div>
+                </a>
+                <a class="card" href="https://ubuntu.com/download/desktop/flavours" target="_blank">
+                    <div>
+                        <div class="card-header">
+                            <span class="card-name">开源系统自带墙</span>
+                            <span class="tag tag-cn">国内直连</span>
+                        </div>
+                        <div class="card-desc">Ubuntu/KDE 等开源系统官方原生壁纸，极具艺术感。</div>
+                    </div>
+                    <div class="card-link">访问下载</div>
+                </a>
+            </div>
+        </div>
+
     </div>
 
+    <footer>
+        Bizhi.Hub · 永远零后端 · 28 个站点大本营 · Keep It Simple, Stupid.
+    </footer>
+
     <script>
-        let state = { query: '', categories: '100', page: 1 };
-
-        const gallery = document.getElementById('gallery');
-        const loading = document.getElementById('loading');
-        const progressBar = document.getElementById('progressBar');
-        
-        // 代理列表，防止某些情况下镜像站依然有跨域限制
-        const proxies = [
-            'https://api.allorigins.win/raw?url=',
-            'https://corsproxy.io/?url=' 
-        ];
-
-        function startProgress() { progressBar.style.width = '30%'; }
-        function endProgress() { progressBar.style.width = '100%'; setTimeout(() => progressBar.style.width = '0', 300); }
-
-        async function fetchWithProxies(targetUrl) {
-            // 先尝试直连镜像站，如果跨域失败再走代理
-            try {
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 6000);
-                const res = await fetch(targetUrl, { signal: controller.signal });
-                clearTimeout(timeoutId);
-                if (res.ok) return res;
-            } catch(e) { console.log('直连失败，尝试代理...'); }
-
-            const encodedUrl = encodeURIComponent(targetUrl);
-            for (let i = 0; i < proxies.length; i++) {
-                try {
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 8000);
-                    const res = await fetch(proxies[i] + encodedUrl, { signal: controller.signal });
-                    clearTimeout(timeoutId);
-                    if (res.ok) return res;
-                } catch (e) { console.log('代理切换中...'); }
-            }
-            throw new Error('所有请求均失败');
-        }
-
-        function switchCat(btn) {
-            document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            state.categories = btn.dataset.cat;
-            state.page = 1;
-            loadWallhaven();
-        }
-
         function doSearch() {
-            state.query = document.getElementById('searchInput').value.trim();
-            state.page = 1;
-            loadWallhaven();
-        }
-
-        function changePage(delta) {
-            state.page += delta;
-            if (state.page < 1) state.page = 1;
-            loadWallhaven();
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-
-        function createItem(data) {
-            const item = document.createElement('div');
-            item.className = 'item';
-            item.dataset.img = data.img;
-            item.dataset.title = data.title;
-            item.dataset.desc = data.desc;
-            item.dataset.source = data.source;
-            item.dataset.res = data.res;
-            item.dataset.link = data.link;
-            item.dataset.category = data.category || '通用';
+            const query = document.getElementById('searchInput').value.trim();
+            if (!query) return;
             
-            const img = document.createElement('img');
-            img.loading = 'lazy';
-            img.src = data.thumb;
-            img.onerror = () => { img.style.opacity = 0.2; };
-            img.onload = () => img.classList.add('loaded');
+            const engine = document.getElementById('searchEngine').value;
+            let url = '';
             
-            const info = document.createElement('div');
-            info.className = 'info';
-            info.innerText = data.title;
-            
-            item.appendChild(img);
-            item.appendChild(info);
-            item.onclick = () => showDetail(item.dataset);
-            return item;
-        }
-
-        async function loadWallhaven() {
-            loading.style.display = 'block';
-            loading.innerText = '正在拉取数据...';
-            gallery.innerHTML = '';
-            startProgress();
-
-            // 核心修改：直接使用 clbug 镜像站的 API
-            let apiUrl = `https://wallhaven.clbug.com/api/v1/search?categories=${state.categories}&purity=100&sorting=toplist&topRange=1M&page=${state.page}`;
-            if (state.query) {
-                apiUrl = `https://wallhaven.clbug.com/api/v1/search?categories=${state.categories}&purity=100&q=${encodeURIComponent(state.query)}&page=${state.page}`;
+            if (engine === 'unsplash') {
+                url = `https://unsplash.com/s/photos/${encodeURIComponent(query)}`;
+            } else if (engine === 'wallhaven') {
+                url = `https://wallhaven.cc/search?q=${encodeURIComponent(query)}`;
+            } else if (engine === 'bing') {
+                url = `https://cn.bing.com/images/search?q=${encodeURIComponent(query)}%20wallpaper`;
+            } else if (engine === 'pixabay') {
+                url = `https://pixabay.com/images/search/${encodeURIComponent(query)}/`;
             }
-
-            try {
-                const res = await fetchWithProxies(apiUrl);
-                const data = await res.json();
-                loading.style.display = 'none';
-
-                if (data.data && data.data.length > 0) {
-                    const frag = document.createDocumentFragment();
-                    data.data.forEach(img => {
-                        // 镜像站返回的 path 和 thumbs 已经是镜像站的域名了，直接用即可，无需代理！
-                        frag.appendChild(createItem({
-                            img: img.path,
-                            thumb: img.thumbs.large,
-                            title: `Wallhaven #${img.id}`,
-                            desc: `分类: ${img.category} | 纯度: ${img.purity}`,
-                            source: 'Wallhaven',
-                            res: img.resolution,
-                            link: img.short_url || img.url,
-                            category: img.category
-                        }));
-                    });
-                    gallery.appendChild(frag);
-                } else {
-                    loading.innerText = '没有找到相关壁纸...';
-                    loading.style.display = 'block';
-                }
-
-                document.getElementById('currentPage').innerText = state.page;
-                document.getElementById('prevBtn').disabled = (state.page === 1);
-                document.getElementById('nextBtn').disabled = (data.data.length < 24);
-
-            } catch (err) {
-                loading.innerText = '接口拉取失败，请稍后再试...';
-            }
-            endProgress();
+            
+            window.open(url, '_blank');
         }
-
-        function showDetail(data) {
-            document.getElementById('detailImg').src = data.img;
-            document.getElementById('detailTitle').innerText = data.title;
-            document.getElementById('detailRes').innerText = data.res;
-            document.getElementById('detailSource').innerText = data.source;
-            document.getElementById('detailCategory').innerText = data.category;
-            document.getElementById('detailDesc').innerText = data.desc;
-
-            const downloadBtn = document.getElementById('downloadBtn');
-            downloadBtn.href = data.img;
-            downloadBtn.setAttribute('download', data.title + '.jpg');
-
-            document.getElementById('sourceBtn').href = data.link;
-            document.getElementById('detailModal').style.display = 'flex';
-        }
-
-        function closeDetail() {
-            document.getElementById('detailModal').style.display = 'none';
-        }
-
-        document.getElementById('detailModal').addEventListener('click', function(e) {
-            if (e.target === this) closeDetail();
-        });
-
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') closeDetail();
-        });
-
-        loadWallhaven();
     </script>
 </body>
 </html>
