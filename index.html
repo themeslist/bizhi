@@ -1,4 +1,235 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>极客壁纸站 | Bizhi</title>
+    <style>
+        :root { --bg: #0d1117; --surface: #161b22; --border: #30363d; --text: #c9d1d9; --subtext: #8b949e; --accent: #58a6ff; --green: #3fb950; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; background: var(--bg); color: var(--text); }
+        
+        header { text-align: center; padding: 40px 20px; border-bottom: 1px solid var(--border); margin-bottom: 20px; }
+        header h1 { font-size: 2rem; color: var(--accent); }
+        header p { color: var(--subtext); margin-top: 10px; }
+        
+        .controls { display: flex; justify-content: center; gap: 15px; margin-bottom: 30px; flex-wrap: wrap; }
+        .btn { background: var(--surface); color: var(--text); border: 1px solid var(--border); padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.2s; }
+        .btn:hover { border-color: var(--accent); color: var(--accent); }
+        .btn.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+
+        .masonry { column-count: 4; column-gap: 15px; padding: 0 20px 40px; }
+        @media (max-width: 1200px) { .masonry { column-count: 3; } }
+        @media (max-width: 800px) { .masonry { column-count: 2; } }
+        @media (max-width: 500px) { .masonry { column-count: 1; } }
+
+        .item { break-inside: avoid; margin-bottom: 15px; border-radius: 8px; overflow: hidden; position: relative; cursor: pointer; border: 1px solid var(--border); }
+        .item img { width: 100%; display: block; transition: transform 0.3s; }
+        .item:hover img { transform: scale(1.05); }
+        .item .info { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(transparent, rgba(0,0,0,0.8)); padding: 20px 10px 10px; font-size: 0.8rem; color: #fff; opacity: 0; transition: opacity 0.3s; }
+        .item:hover .info { opacity: 1; }
+        
+        .loading { text-align: center; padding: 50px; color: var(--subtext); }
+
+        /* === 详情页模态框样式 === */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 1000; justify-content: center; align-items: center; padding: 20px; backdrop-filter: blur(8px); }
+        .modal-content { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; max-width: 1200px; width: 100%; max-height: 90vh; display: flex; overflow: hidden; }
+        .modal-img-area { flex: 2; background: #000; display: flex; justify-content: center; align-items: center; overflow: hidden; }
+        .modal-img-area img { max-width: 100%; max-height: 90vh; object-fit: contain; }
+        .modal-info-area { flex: 1; padding: 30px; display: flex; flex-direction: column; gap: 20px; overflow-y: auto; }
+        .modal-info-area h2 { color: var(--accent); font-size: 1.4rem; }
+        .meta-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+        .meta-label { color: var(--subtext); }
+        .meta-value { color: var(--text); font-weight: 600; text-align: right; }
+        .btn-group { margin-top: auto; display: flex; flex-direction: column; gap: 10px; }
+        .btn-download { background: var(--green); color: #000; text-align: center; text-decoration: none; padding: 12px; border-radius: 6px; font-weight: 700; border: none; cursor: pointer; }
+        .btn-source { background: transparent; color: var(--subtext); text-align: center; text-decoration: none; padding: 12px; border-radius: 6px; border: 1px solid var(--border); }
+        .btn-source:hover { border-color: var(--accent); color: var(--accent); }
+        .close-btn { position: absolute; top: 20px; right: 30px; color: #fff; font-size: 2rem; cursor: pointer; z-index: 1001; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Bizhi - 极客壁纸站</h1>
+        <p>聚合 Wallhaven 与 必应每日高清壁纸</p>
+    </header>
+
+    <div class="controls">
+        <button class="btn active" onclick="loadBing(event)">必应每日</button>
+        <button class="btn" onclick="loadWallhaven(event, '')">Wallhaven 热门</button>
+        <button class="btn" onclick="loadWallhaven(event, 'anime')">Wallhaven 动漫</button>
+        <button class="btn" onclick="loadWallhaven(event, 'landscape')">Wallhaven 风景</button>
+    </div>
+
+    <div id="loading" class="loading">正在拉取数据...</div>
+    <div class="masonry" id="gallery"></div>
+
+    <!-- 详情页模态框 -->
+    <div class="modal-overlay" id="detailModal">
+        <span class="close-btn" onclick="closeDetail()">&times;</span>
+        <div class="modal-content">
+            <div class="modal-img-area">
+                <img id="detailImg" src="" alt="Preview">
+            </div>
+            <div class="modal-info-area">
+                <h2 id="detailTitle">壁纸详情</h2>
+                <div class="meta-row">
+                    <span class="meta-label">分辨率</span>
+                    <span class="meta-value" id="detailRes">-</span>
+                </div>
+                <div class="meta-row">
+                    <span class="meta-label">来源</span>
+                    <span class="meta-value" id="detailSource">-</span>
+                </div>
+                <div class="meta-row">
+                    <span class="meta-label">分类</span>
+                    <span class="meta-value" id="detailCategory">-</span>
+                </div>
+                <div class="meta-row" style="border: none;">
+                    <span class="meta-label">描述</span>
+                </div>
+                <p style="font-size: 0.85rem; color: var(--subtext); flex-grow: 1;" id="detailDesc">-</p>
+                
+                <div class="btn-group">
+                    <a id="downloadBtn" class="btn-download" download="" target="_blank">下载高清原图</a>
+                    <a id="sourceBtn" class="btn-source" target="_blank">访问来源网页</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
+        const gallery = document.getElementById('gallery');
+        const loading = document.getElementById('loading');
+        const proxies = [
+            'https://api.codetabs.com/v1/proxy/?quest=',
+            'https://api.allorigins.win/raw?url=',
+            'https://corsproxy.io/?url=' 
+        ];
+
+        async function fetchWithProxies(targetUrl) {
+            for (let i = 0; i < proxies.length; i++) {
+                const proxy = proxies[i];
+                const fetchUrl = proxy.includes('allorigins') ? proxy + encodeURIComponent(targetUrl) : proxy + targetUrl;
+                try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 5000);
+                    const res = await fetch(fetchUrl, { signal: controller.signal });
+                    clearTimeout(timeoutId);
+                    if (res.ok) return res;
+                } catch (e) { console.log(`代理超时，尝试下一个...`); }
+            }
+            throw new Error('所有代理均请求失败');
+        }
+
+        function setActiveBtn(btn) {
+            document.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        }
+
+        async function loadBing(e) {
+            setActiveBtn(e.target);
+            loading.style.display = 'block';
+            loading.innerText = '正在拉取必应数据...';
+            gallery.innerHTML = '';
+            const bingApi = 'https://cn.bing.com/HPImageArchive.aspx?format=js&idx=0&n=10&mkt=zh-CN';
+            try {
+                const res = await fetchWithProxies(bingApi);
+                const data = await res.json();
+                loading.style.display = 'none');
+                data.images.forEach(img => {
+                    const imgUrl = 'https://cn.bing.com' + img.url;
+                    const item = document.createElement('div');
+                    item.className = 'item';
+                    
+                    // 存储详情数据
+                    item.dataset.img = imgUrl;
+                    item.dataset.title = img.copyright.split('(')[0].trim();
+                    item.dataset.desc = img.copyright;
+                    item.dataset.source = 'Bing';
+                    item.dataset.res = '1920x1080 (可转4K)';
+                    item.dataset.link = 'https://cn.bing.com';
+                    
+                    item.innerHTML = `<img src="${imgUrl}" loading="lazy"><div class="info">${img.copyright.split('(')[0]}</div>`;
+                    item.onclick = () => showDetail(item.dataset);
+                    gallery.appendChild(item);
+                });
+            } catch(err) { loading.innerText = '必应接口拉取失败...'; }
+        }
+
+        async function loadWallhaven(e, tag = '') {
+            setActiveBtn(e.target);
+            loading.style.display = 'block';
+            loading.innerText = '正在拉取 Wallhaven 数据 (可能需要几秒)...';
+            gallery.innerHTML = '';
+            let wallhavenApi = 'https://wallhaven.cc/api/v1/search?categories=100&purity=100&sorting=toplist&topRange=1M&page=1';
+            if (tag) wallhavenApi += `&q=${tag}`;
+            try {
+                const res = await fetchWithProxies(wallhavenApi);
+                const data = await res.json();
+                loading.style.display = 'none';
+                if(data.data && data.data.length > 0) {
+                    data.data.forEach(img => {
+                        const item = document.createElement('div');
+                        item.className = 'item';
+                        item.dataset.img = img.path;
+                        item.dataset.title = `Wallhaven #${img.id}`;
+                        item.dataset.desc = `分类: ${img.category} | 纯度: ${img.purity}`;
+                        item.dataset.source = 'Wallhaven';
+                        item.dataset.res = img.resolution;
+                        item.dataset.link = img.short_url || img.url;
+                        item.innerHTML = `<img src="${img.thumbs.large}" loading="lazy"><div class="info">分辨率: ${img.resolution}</div>`;
+                        item.onclick = () => showDetail(item.dataset);
+                        gallery.appendChild(item);
+                    });
+                } else { loading.innerText = '没有找到相关壁纸...'; loading.style.display = 'block'; }
+            } catch(err) { loading.innerText = 'Wallhaven 接口拉取失败...'; }
+        }
+
+        // 详情页展示逻辑
+        function showDetail(data) {
+            document.getElementById('detailImg').src = data.img;
+            document.getElementById('detailTitle').innerText = data.title;
+            document.getElementById('detailRes').innerText = data.res;
+            document.getElementById('detailSource').innerText = data.source;
+            document.getElementById('detailCategory').innerText = data.category || '通用';
+            document.getElementById('detailDesc').innerText = data.desc;
+            
+            let downloadUrl = data.img;
+            // 必应 4K 黑科技：把 _1920x1080 替换成 _UHD 获取超清原图
+            if(data.source === 'Bing') {
+                downloadUrl = data.img.replace('_1920x1080', '_UHD');
+            }
+
+            const downloadBtn = document.getElementById('downloadBtn');
+            downloadBtn.href = downloadUrl;
+            // 跨域图片无法直接重命名下载，但 download 属性仍会触发浏览器下载行为而不是跳转
+            downloadBtn.setAttribute('download', data.title + '.jpg'); 
+            
+            document.getElementById('sourceBtn').href = data.link;
+            document.getElementById('detailModal').style.display = 'flex';
+        }
+
+        function closeDetail() {
+            document.getElementById('detailModal').style.display = 'none';
+        }
+
+        // 点击遮罩层关闭
+        document.getElementById('detailModal').addEventListener('click', function(e) {
+            if(e.target === this) closeDetail();
+        });
+
+        // ESC 关闭
+        document.addEventListener('keydown', function(e) {
+            if(e.key === 'Escape') closeDetail();
+        });
+
+        // 初始化默认加载必应
+        loadBing({ target: document.querySelector('.btn') });
+    </script>
+</body>
+</html>    <script>
         const gallery = document.getElementById('gallery');
         const loading = document.getElementById('loading');
         
