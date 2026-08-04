@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>极客壁纸站 | Bizhi</title>
+    <style>
+        :root { --bg: #0d1117; --surface: #161b22; --border: #30363d; --text: #c9d1d9; --subtext: #8b949e; --accent: #58a6ff; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; background: var(--bg); color: var(--text); }
+        header { text-align: center; padding: 40px 20px; border-bottom: 1px solid var(--border); margin-bottom: 20px; }
+        header h1 { font-size: 2rem; color: var(--accent); }
+        header p { color: var(--subtext); margin-top: 10px; }
+        
+        .controls { display: flex; justify-content: center; gap: 15px; margin-bottom: 30px; flex-wrap: wrap; }
+        .btn { background: var(--surface); color: var(--text); border: 1px solid var(--border); padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.2s; }
+        .btn:hover { border-color: var(--accent); color: var(--accent); }
+        .btn.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+
+        .masonry { column-count: 4; column-gap: 15px; padding: 0 20px 40px; }
+        @media (max-width: 1200px) { .masonry { column-count: 3; } }
+        @media (max-width: 800px) { .masonry { column-count: 2; } }
+        @media (max-width: 500px) { .masonry { column-count: 1; } }
+
+        .item { break-inside: avoid; margin-bottom: 15px; border-radius: 8px; overflow: hidden; position: relative; cursor: pointer; border: 1px solid var(--border); }
+        .item img { width: 100%; display: block; transition: transform 0.3s; }
+        .item:hover img { transform: scale(1.05); }
+        .item .info { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(transparent, rgba(0,0,0,0.8)); padding: 20px 10px 10px; font-size: 0.8rem; color: #fff; opacity: 0; transition: opacity 0.3s; }
+        .item:hover .info { opacity: 1; }
+        
+        .loading { text-align: center; padding: 50px; color: var(--subtext); }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Bizhi - 极客壁纸站</h1>
+        <p>聚合 Wallhaven 与 必应每日高清壁纸</p>
+    </header>
+
+    <div class="controls">
+        <button class="btn active" onclick="loadBing()">必应每日</button>
+        <button class="btn" onclick="loadWallhaven()">Wallhaven 热门</button>
+        <button class="btn" onclick="loadWallhaven('anime')">Wallhaven 动漫</button>
+        <button class="btn" onclick="loadWallhaven('landscape')">Wallhaven 风景</button>
+    </div>
+
+    <div id="loading" class="loading">正在拉取数据...</div>
+    <div class="masonry" id="gallery"></div>
+
+    <script>
+        const gallery = document.getElementById('gallery');
+        const loading = document.getElementById('loading');
+        // 公共 CORS 代理，解决纯前端跨域请求问题
+        const proxy = 'https://api.allorigins.win/raw?url=';
+
+        async function loadBing() {
+            setActiveBtn(event.target);
+            loading.style.display = 'block';
+            gallery.innerHTML = '';
+            const bingApi = 'https://cn.bing.com/HPImageArchive.aspx?format=js&idx=0&n=10&mkt=zh-CN';
+            
+            try {
+                const res = await fetch(proxy + encodeURIComponent(bingApi));
+                const data = await res.json();
+                loading.style.display = 'none';
+                
+                data.images.forEach(img => {
+                    const imgUrl = 'https://cn.bing.com' + img.url;
+                    const item = document.createElement('a');
+                    item.className = 'item';
+                    item.href = imgUrl;
+                    item.target = '_blank';
+                    item.innerHTML = `
+                        <img src="${imgUrl}" loading="lazy" alt="${img.copyright}">
+                        <div class="info">${img.copyright}</div>
+                    `;
+                    gallery.appendChild(item);
+                });
+            } catch(e) {
+                loading.innerText = '必应接口拉取失败，稍后重试...';
+            }
+        }
+
+        async function loadWallhaven(tag = '') {
+            setActiveBtn(event.target);
+            loading.style.display = 'block';
+            gallery.innerHTML = '';
+            
+            // 官方 API，最多拉取 24 张 Top 热度图
+            let wallhavenApi = 'https://wallhaven.cc/api/v1/search?categories=100&purity=100&sorting=toplist&topRange=1M&page=1';
+            if (tag) wallhavenApi += `&q=${tag}`;
+
+            try {
+                const res = await fetch(proxy + encodeURIComponent(wallhavenApi));
+                const data = await res.json();
+                loading.style.display = 'none';
+
+                data.data.forEach(img => {
+                    const item = document.createElement('a');
+                    item.className = 'item';
+                    item.href = img.path;
+                    item.target = '_blank';
+                    item.innerHTML = `
+                        <img src="${img.thumbs.large}" loading="lazy" alt="Wallpaper">
+                        <div class="info">分辨率: ${img.resolution} | 点击查看原图</div>
+                    `;
+                    gallery.appendChild(item);
+                });
+            } catch(e) {
+                loading.innerText = 'Wallhaven 接口拉取失败，可能是代理超时...';
+            }
+        }
+
+        function setActiveBtn(btn) {
+            document.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        }
+
+        // 初始化默认加载必应
+        loadBing();
+    </script>
+</body>
+</html>
